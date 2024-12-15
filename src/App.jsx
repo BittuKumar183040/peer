@@ -1,98 +1,123 @@
-import './styles/App.css';
-import { useState, useRef } from 'react';
-import Peer from 'simple-peer';
+import "./styles/App.css";
+import { useState, useRef } from "react";
+import Peer from "simple-peer";
 
-function App() {
-  const [isConnected, setIsConnected] = useState(false);
-  const selfVideo = useRef();
-  const otherVideo = useRef();
+const P2PVideoChat = () => {
+  const [signalData, setSignalData] = useState(""); // For sharing signaling data
+  const [isConnected, setIsConnected] = useState(false); // Connection status
+
+  const myVideoRef = useRef();
+  const peerVideoRef = useRef();
   const connectionRef = useRef();
-  const [signalData, setSignalData] = useState('');
 
   const startStream = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      selfVideo.current.srcObject = stream;
-      return stream;
-    } catch (err) {
-      console.log(err);
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    myVideoRef.current.srcObject = stream;
+    return stream;
   };
 
   const createPeerConnection = async (initiator) => {
     const stream = await startStream();
     const peer = new Peer({
       initiator,
-      trickle: false,
+      trickle: false, // Disable trickling to simplify data exchange
       stream,
     });
 
-    peer.on('signal', (data) => {
-      setSignalData(JSON.stringify(data));
+    peer.on("signal", (data) => {
+      setSignalData(JSON.stringify(data)); // Output signal data to share
     });
 
-    peer.on('stream', (otherStream) => {
-      otherVideo.current.srcObject = otherStream;
+    peer.on("stream", (peerStream) => {
+      peerVideoRef.current.srcObject = peerStream;
     });
 
-    peer.on('connect', () => {
+    peer.on("connect", () => {
       setIsConnected(true);
-      console.log('Connected');
     });
 
     connectionRef.current = peer;
   };
 
   const handleReceiveSignal = () => {
-    const parsedData = JSON.parse(signalData); // Parse the input signaling data
-    connectionRef.current.signal(parsedData); // Signal the peer
+    const parsedData = JSON.parse(signalData);
+    connectionRef.current.signal(parsedData);
   };
 
   return (
-    <div id="parentDiv" className=" flex flex-col gap-5 m-4">
-      <div className=" flex gap-3">
-        <div className=" h-full w-96">
-          <video autoPlay muted ref={otherVideo} />
+    <div className=" m-4">
+      <h1 className=" w-full text-center mb-2">P2P Video Chat</h1>
+      <hr />
+      <div className=" flex gap-6 my-10">
+        <div className=" relative bg-slate-400">
+          <video ref={peerVideoRef} autoPlay style={{ width: "300px" }} />
+          <div className=" absolute top-0 left-0 bg-white rounded-sm px-4">
+            <p>Other</p>
+          </div>
         </div>
-        <div className=" h-full w-32 bg-slate-300">
-          <video autoPlay muted ref={selfVideo} />
+        <div className=" relative">
+          <video
+            ref={myVideoRef}
+            autoPlay
+            muted
+            style={{ width: "100px", height: "100px" }}
+          />
+          <div className=" absolute top-0 left-0 bg-white rounded-sm px-4">
+            <p>Self</p>
+          </div>
         </div>
       </div>
-      {!isConnected ? (
-        <div className=" ">
-          <div className=" flex gap-4">
-            <button
-              onClick={() => {
-                createPeerConnection(true);
-              }}
-              className=" p-2 bg-slate-300 rounded-md px-8 w-fit h-fit shadow-md "
-            >
-              Connect
-            </button>
-            <button
-              onClick={() => {
-                createPeerConnection(false);
-              }}
-            >
-              Join
-            </button>
-          </div>
+      <div>
+        {!isConnected ? (
+          <>
+            <div className=" flex gap-6">
+              <button
+                className=" p-2 bg-slate-500 rounded-md text-white px-6"
+                onClick={() => createPeerConnection(true)}
+              >
+                Create Connection
+              </button>
+              <button
+                className=" p-2 bg-slate-500 rounded-md text-white px-6"
+                onClick={() => createPeerConnection(false)}
+              >
+                Join Connection
+              </button>
+            </div>
+            <div className=" flex gap-5 flex-col">
+              <textarea
+                placeholder="Signal Data (paste here to connect)"
+                value={signalData}
+                onChange={(e) => setSignalData(e.target.value)}
+                style={{ width: "100%", height: "100px" }}
+              />
+              <button
+                className=" p-2 px-8 bg-gray-300 w-fit rounded-md text-black shadow-md border border-black"
+                onClick={handleReceiveSignal}
+              >
+                Submit Signal
+              </button>
+            </div>
+          </>
+        ) : (
+          <p>Connected to Peer!</p>
+        )}
+      </div>
+      {signalData && (
+        <div>
+          <p>Share this Signal Data with your Peer:</p>
           <textarea
-            placeholder="Signal Data (paste here to connect)"
+            readOnly
             value={signalData}
-            onChange={(e) => setSignalData(e.target.value)}
-            style={{ width: '100%', height: '100px' }}
+            style={{ width: "100%", height: "100px" }}
           />
-          <button onClick={handleReceiveSignal}>Submit Signal</button>
         </div>
-      ) : (
-        <p>Connected to Peer!</p>
       )}
     </div>
   );
-}
+};
 
-export default App;
+export default P2PVideoChat;
